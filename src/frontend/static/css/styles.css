@@ -1,41 +1,43 @@
-/* Estilos personalizados para la aplicación de la incubadora */
-
+/* Custom Styles para la aplicación de Hogar Inteligente */
 body {
     display: flex;
     min-height: 100vh;
     flex-direction: column;
-    background-color: #f4f4f4;
 }
 
-main {
+.main-container {
     flex: 1 0 auto;
     padding-bottom: 20px;
 }
 
-.nav-wrapper .brand-logo {
+.collection .collection-item {
     display: flex;
+    justify-content: space-between;
     align-items: center;
 }
 
-.medium-icon {
-    font-size: 4rem;
-    color: #4db6ac; /* Un color teal más claro */
+.collection .collection-item .actions a {
+    margin-left: 15px;
+    color: #00796b; /* Un tono de teal oscuro */
 }
 
-.card-panel {
-    border-radius: 8px;
+.collection .collection-item .actions a:hover {
+    color: #004d40; /* Teal más oscuro al pasar el mouse */
 }
 
-.card {
-    border-radius: 8px;
-}
-
-.switch label {
-    font-size: 1.1rem;
-}
-
-/* Ajuste para que los switches se vean mejor en las tarjetas */
-.card .card-content .switch {
+.actuator-control {
     margin-top: 20px;
-    margin-bottom: 10px;
+    padding: 20px;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    background-color: #fff;
+}
+
+.modal {
+    max-width: 500px;
+    border-radius: 8px;
+}
+
+.modal .modal-content h4 {
+    margin-bottom: 2rem;
 }

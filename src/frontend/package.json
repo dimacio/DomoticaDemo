@@ -1,12 +1,13 @@
 {
-  "name": "incubator-frontend",
+  "name": "smart-home-frontend",
   "version": "1.0.0",
-  "description": "Frontend para el sistema de control de incubadora",
+  "description": "Frontend con TypeScript y Materialize para el sistema de hogar inteligente.",
+  "main": "static/js/main.js",
   "scripts": {
-    "build": "tsc --project ts/tsconfig.json"
+    "build": "tsc"
   },
   "devDependencies": {
-    "@types/chart.js": "^2.9.37",
+    "@types/materialize-css": "^1.0.14",
     "typescript": "^4.9.5"
   }
 }

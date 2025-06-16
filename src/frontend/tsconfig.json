@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+    "target": "es6",
+    "lib": ["es2019", "dom", "dom.iterable"],
+    "module": "es6",
+    "moduleResolution": "node",
+    "outDir": "./static/js",
+    "rootDir": "./ts",
+    "strict": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true
+  },
+  "include": [
+    "ts/**/*.ts"
+  ]
+}

@@ -1,65 +1,71 @@
-version: '3.8'
-
+# =================================================================
+# Archivo de Orquestación de Docker para el Sistema de Hogar Inteligente
+# Define y configura los tres servicios: frontend, backend, y db.
+# Se puede levantar todo el sistema con: docker-compose up --build
+# =================================================================
 services:
-  # Servicio del Backend (API Principal)
+  # --- Servicio del Backend (API Principal en Node.js) ---
   backend:
-    build: ./src/backend
+    build: ./src/backend  # Construye la imagen desde el Dockerfile en ./src/backend
     ports:
-      - "3000:3000"
+      - "3000:3000"       # Mapea el puerto 3000 del contenedor al host (para debugging)
     volumes:
+      # Mapea el código fuente para live-reload con nodemon.
+      # Se excluye node_modules para usar la versión instalada dentro del contenedor.
       - ./src/backend:/usr/src/app
+      - /usr/src/app/node_modules
     depends_on:
-      - db
-      - esp32-emulator # El backend depende de la DB y del emulador
+      - db                # Asegura que el servicio 'db' se inicie antes que el 'backend'.
     networks:
-      - app-network
+      - app-network       # Conecta este servicio a la red compartida.
     environment:
+      # Variables de entorno para la conexión a la base de datos.
+      # 'db' es el nombre del servicio de la base de datos en esta red.
       - MYSQL_HOST=db
       - MYSQL_USER=user
       - MYSQL_PASSWORD=password
-      - MYSQL_DB=smart_garden
-      - ESP32_EMULATOR_URL=http://esp32-emulator:3001 # URL para comunicarse con el emulador
+      - MYSQL_DB=smart_home
 
-  # Servicio del Frontend
+  # --- Servicio del Frontend (Servidor Web Nginx) ---
   frontend:
     build:
-      context: ./src/frontend
-      dockerfile: Dockerfile
-    volumes:
-      - ./src/frontend:/usr/share/nginx/html
-      - ./src/frontend/nginx.conf:/etc/nginx/conf.d/default.conf
+      context: ./src/frontend # Construye desde el contexto de ./src/frontend
+      dockerfile: Dockerfile  # Usando su Dockerfile específico
     ports:
-      - "8080:80"
+      - "8080:80"         # Expone la aplicación al exterior en el puerto 8080.
     depends_on:
-      - backend
+      - backend           # Se asegura que el backend esté disponible.
     networks:
-      - app-network
+      - app-network       # Conecta este servicio a la red compartida.
 
-  # Servicio de Base de Datos
+  # --- Servicio de Base de Datos (MySQL 8.0) ---
   db:
     image: mysql:8.0
+    command: --default-authentication-plugin=mysql_native_password
+    restart: always
     ports:
+      # Exponer el puerto de MySQL es opcional y útil para debugging con clientes de DB.
       - "3306:3306"
     environment:
+      # Credenciales para la base de datos.
       MYSQL_ROOT_PASSWORD: root_password
-      MYSQL_DATABASE: smart_garden
+      MYSQL_DATABASE: smart_home
       MYSQL_USER: user
       MYSQL_PASSWORD: password
     volumes:
-      - ./db/dumps:/docker-entrypoint-initdb.d
+      # Monta el script de inicialización. Se ejecutará solo la primera vez que se cree el contenedor.
+      # El nombre del archivo local es 'init.sql'
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
+      # Crea un volumen persistente para los datos de la base de datos.
+      - smart-home-db-data:/var/lib/mysql
     networks:
       - app-network
 
-  # Emulador del dispositivo ESP32
-  esp32-emulator:
-    build: ./src/esp32-emulator # Ruta al Dockerfile del emulador
-    ports:
-      - "3001:3001" # Puerto para comunicación interna
-    volumes:
-      - ./src/esp32-emulator:/usr/src/app
-    networks:
-      - app-network
+# --- Volumen Persistente para la Base de Datos ---
+volumes:
+  smart-home-db-data: # Este volumen guardará los datos de MySQL para que no se pierdan.
 
+# --- Red Compartida para la Comunicación entre Servicios ---
 networks:
   app-network:
-    driver: bridge
+    driver: bridge # Red de tipo bridge estándar de Docker.

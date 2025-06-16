@@ -1,0 +1,12 @@
+# Ignorar dependencias de Node, ya que se instalan dentro del contenedor
+node_modules
+
+# Ignorar logs de npm
+npm-debug.log
+
+# Ignorar la carpeta de construcción del frontend (si aplica)
+/src/frontend/static/js/main.js
+
+# Ignorar archivos del sistema operativo
+.DS_Store
+Thumbs.db

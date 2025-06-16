@@ -1,197 +1,278 @@
-class Main {
-    private backendApiUrl = 'http://localhost:3000/api';
-    private incubatorId = 1; // Usamos la incubadora 1 para este MVP
-    private chart: Chart | null = null;
+// =================================================================
+// Lógica del Frontend para el Panel de Control con Materialize y TypeScript (CORREGIDO)
+// =================================================================
+
+
+
+// --- Interfaces para Tipado de Datos ---
+interface Device {
+    id: number;
+    name: string;
+    description: string;
+    type: 'light' | 'fan' | 'blinds' | 'tv';
+    state: number;
+    room: string;
+    icon: string;
+}
+
+/**
+ * Clase para manejar todas las interacciones con la API del backend.
+ */
+class DeviceAPI {
+    private baseUrl: string = '/api';
+
+    private async fetchJSON<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+        const url = `${this.baseUrl}${endpoint}`;
+        const config: RequestInit = {
+            ...options,
+            headers: { 'Content-Type': 'application/json', ...options.headers },
+        };
+        try {
+            const response = await fetch(url, config);
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.message || `Error en la red: ${response.status}`);
+            }
+            return response.status === 204 ? ({} as T) : (await response.json() as T);
+        } catch (error: any) {
+            M.toast({ html: `Error de API: ${error.message}` });
+            throw error;
+        }
+    }
+
+    getDevices = (): Promise<Device[]> => this.fetchJSON('/devices');
+    createDevice = (data: Omit<Device, 'id' | 'state'>): Promise<Device> => this.fetchJSON('/devices', { method: 'POST', body: JSON.stringify(data) });
+    updateDevice = (id: number, data: Partial<Omit<Device, 'id'|'state'>>): Promise<Device> => this.fetchJSON(`/devices/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+    updateDeviceState = (id: number, state: number): Promise<any> => this.fetchJSON(`/devices/${id}/state`, { method: 'PUT', body: JSON.stringify({ state }) });
+    deleteDevice = (id: number): Promise<void> => this.fetchJSON(`/devices/${id}`, { method: 'DELETE' });
+}
+
+/**
+ * Clase para manejar todas las manipulaciones del DOM.
+ */
+class UIManager {
+    // CORRECCIÓN: Se cambian las propiedades a 'public' para que sean accesibles desde otras clases.
+    public devicesList: HTMLElement = document.getElementById('devices-list')!;
+    public controlsContainer: HTMLElement = document.getElementById('actuator-controls')!;
+    public modalEl: HTMLElement = document.getElementById('device-modal')!;
+    public modalInstance: any;
+    public form: HTMLFormElement = document.getElementById('device-form') as HTMLFormElement;
+    
+    private modalTitle: HTMLElement = document.getElementById('modal-title')!;
+    private deviceIdInput: HTMLInputElement = document.getElementById('device-id') as HTMLInputElement;
 
     constructor() {
-        document.addEventListener('DOMContentLoaded', () => {
-            console.log("DOM listo. Inicializando la aplicación (v4 - fix Chart.js).");
-            this.initChart();
-            this.initControls();
-            this.loadInitialStates();
-            this.updateDataLoop();
-        });
+        this.modalInstance = M.Modal.init(this.modalEl);
     }
 
-    private updateDataLoop(): void {
-        const update = () => {
-            this.updateSensorReadings();
-            this.updateChart();
-        };
-        update();
-        setInterval(update, 5000);
-    }
-
-    private async loadInitialStates(): Promise<void> {
-        try {
-            const response = await fetch(`${this.backendApiUrl}/incubators/${this.incubatorId}/devices`);
-            const devices = await response.json();
-            
-            devices.forEach((device: any) => {
-                if (device.category === 'actuator') {
-                    const control = document.querySelector(`[data-device-id="${device.id}"]`) as HTMLInputElement;
-                    if (!control) return;
-
-                    switch(device.type) {
-                        case 'dimmer':
-                            control.value = device.state;
-                            const dimmerLabel = document.getElementById('dimmer-label');
-                            if (dimmerLabel) dimmerLabel.innerText = `Intensidad: ${device.state}%`;
-                            break;
-                        case 'heater':
-                        case 'vaporizer':
-                            control.checked = Boolean(device.state);
-                            break;
-                    }
-                }
-            });
-        } catch(error) {
-            console.error("Error al cargar estados iniciales:", error);
-        }
-    }
-
-    private initControls(): void {
-        const dimmerSlider = document.getElementById('dimmer-slider') as HTMLInputElement;
-        const dimmerLabel = document.getElementById('dimmer-label') as HTMLElement;
-        const heaterSwitch = document.getElementById('heater-switch') as HTMLInputElement;
-        const vaporizerSwitch = document.getElementById('vaporizer-switch') as HTMLInputElement;
-
-        dimmerSlider?.addEventListener('input', () => {
-            if(dimmerLabel) dimmerLabel.innerText = `Intensidad: ${dimmerSlider.value}%`;
-        });
-
-        dimmerSlider?.addEventListener('change', () => this.sendActuatorCommand(dimmerSlider));
-        heaterSwitch?.addEventListener('change', () => this.sendActuatorCommand(heaterSwitch));
-        vaporizerSwitch?.addEventListener('change', () => this.sendActuatorCommand(vaporizerSwitch));
-    }
-
-    private async sendActuatorCommand(element: HTMLInputElement): Promise<void> {
-        const deviceId = element.dataset.deviceId;
-        if (!deviceId) return;
-
-        const value = (element.type === 'checkbox') ? (element.checked ? 1 : 0) : Number(element.value);
-
-        try {
-            const url = `${this.backendApiUrl}/incubators/${this.incubatorId}/actuators/${deviceId}`;
-            await fetch(url, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ value })
-            });
-        } catch (error) {
-            console.error("Fallo la comunicación con el backend:", error);
-        }
-    }
-
-    private async updateSensorReadings(): Promise<void> {
-        try {
-            const url = `${this.backendApiUrl}/incubators/${this.incubatorId}/sensors/reading`;
-            const response = await fetch(url);
-            if (!response.ok) {
-                this.displayErrorState();
-                return;
-            }
-            const data = await response.json();
-            const tempDisplay = document.getElementById('temp-display');
-            const humDisplay = document.getElementById('hum-display');
-
-            if (tempDisplay) tempDisplay.innerText = `${data.temperature.toFixed(1)} °C`;
-            if (humDisplay) humDisplay.innerText = `${data.humidity.toFixed(1)} %`;
-        } catch (error) {
-            this.displayErrorState();
-        }
+    public render(devices: Device[]): void {
+        this.renderDeviceList(devices);
+        this.renderActuatorControls(devices);
     }
     
-    private displayErrorState(): void {
-        const tempDisplay = document.getElementById('temp-display');
-        const humDisplay = document.getElementById('hum-display');
-        if (tempDisplay) tempDisplay.innerText = `Error`;
-        if (humDisplay) humDisplay.innerText = `Error`;
+    private renderDeviceList(devices: Device[]): void {
+        // Limpiar solo los items, no la cabecera
+        this.devicesList.querySelectorAll('.collection-item').forEach(item => item.remove());
+
+        if (devices.length === 0) {
+            const emptyItem = document.createElement('li');
+            emptyItem.className = 'collection-item';
+            emptyItem.textContent = 'No hay dispositivos. Agrega uno con el botón "+".';
+            this.devicesList.appendChild(emptyItem);
+        } else {
+            devices.forEach(device => {
+                const item = document.createElement('li');
+                item.className = 'collection-item';
+                item.innerHTML = `
+                    <div>
+                        <strong>${device.name}</strong>
+                        <span class="grey-text"> - ${device.description} (${device.room})</span>
+                    </div>
+                    <div class="actions">
+                        <a href="#!" class="edit-btn" data-id="${device.id}"><i class="material-icons">edit</i></a>
+                        <a href="#!" class="delete-btn" data-id="${device.id}"><i class="material-icons">delete</i></a>
+                    </div>
+                `;
+                this.devicesList.appendChild(item);
+            });
+        }
     }
 
-    private initChart(): void {
-        const ctx = (document.getElementById('sensorChart') as HTMLCanvasElement)?.getContext('2d');
-        if (!ctx) return;
-
-        this.chart = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: [],
-                datasets: [
-                    {
-                        label: 'Temperatura (°C)',
-                        borderColor: 'rgb(255, 99, 132)',
-                        backgroundColor: 'rgba(255, 99, 132, 0.5)',
-                        data: [],
-                        yAxisID: 'y-axis-temp' // ID para el eje Y de temperatura
-                    },
-                    {
-                        label: 'Humedad (%)',
-                        borderColor: 'rgb(54, 162, 235)',
-                        backgroundColor: 'rgba(54, 162, 235, 0.5)',
-                        data: [],
-                        yAxisID: 'y-axis-hum' // ID para el eje Y de humedad
-                    }
-                ]
-            },
-            options: {
-                responsive: true,
-                // ** AQUÍ ESTÁ EL CAMBIO **
-                // Se revierte a la sintaxis de 'scales' de Chart.js v2 para coincidir con los @types instalados.
-                scales: {
-                    xAxes: [{
-                        type: 'time',
-                        time: {
-                            unit: 'minute',
-                             displayFormats: {
-                                minute: 'HH:mm'
-                            }
-                        },
-                        scaleLabel: { display: true, labelString: 'Tiempo' }
-                    }],
-                    yAxes: [
-                        {
-                            id: 'y-axis-temp',
-                            type: 'linear',
-                            position: 'left',
-                            scaleLabel: { display: true, labelString: 'Temperatura (°C)' }
-                        },
-                        {
-                            id: 'y-axis-hum',
-                            type: 'linear',
-                            position: 'right',
-                            scaleLabel: { display: true, labelString: 'Humedad (%)' },
-                            gridLines: { drawOnChartArea: false }
-                        }
-                    ]
-                }
-            }
-        });
-    }
-
-    private async updateChart(): Promise<void> {
-        // Se usan 'optional chaining' (?.) para evitar errores si el chart aún no está listo.
-        if (!this.chart?.data?.labels || !this.chart?.data?.datasets) {
+    private renderActuatorControls(devices: Device[]): void {
+        this.controlsContainer.innerHTML = '';
+        const actuators = devices.filter(d => ['light', 'fan', 'blinds', 'tv'].includes(d.type));
+        
+        if (actuators.length === 0) {
+            this.controlsContainer.innerHTML = `<p class="col s12 grey-text">No hay actuadores para controlar.</p>`;
             return;
         }
 
+        actuators.forEach(device => {
+            const controlDiv = document.createElement('div');
+            controlDiv.className = 'col s12 m6 l4';
+            let controlHtml = `<div class="card-panel actuator-control"><h5>${device.name}</h5>`;
+
+            if (device.type === 'light' || device.type === 'blinds') {
+                controlHtml += `
+                    <p class="range-field">
+                        <label>Intensidad</label>
+                        <input type="range" class="actuator-slider" data-id="${device.id}" min="0" max="100" value="${device.state || 0}" />
+                    </p>`;
+            } else if (device.type === 'fan' || device.type === 'tv') {
+                 controlHtml += `
+                    <div class="switch">
+                        <label>
+                            Off
+                            <input type="checkbox" class="actuator-switch" data-id="${device.id}" ${device.state ? 'checked' : ''}>
+                            <span class="lever"></span>
+                            On
+                        </label>
+                    </div>`;
+            }
+            controlHtml += `</div>`;
+            controlDiv.innerHTML = controlHtml;
+            this.controlsContainer.appendChild(controlDiv);
+        });
+    }
+
+    public openModal(device: Device | null = null): void {
+        this.form.reset();
+        if (device) {
+            this.modalTitle.textContent = 'Editar Dispositivo';
+            this.deviceIdInput.value = String(device.id);
+            (this.form.elements.namedItem('name') as HTMLInputElement).value = device.name;
+            (this.form.elements.namedItem('description') as HTMLInputElement).value = device.description;
+            (this.form.elements.namedItem('room') as HTMLInputElement).value = device.room;
+            (this.form.elements.namedItem('type') as HTMLSelectElement).value = device.type;
+        } else {
+            this.modalTitle.textContent = 'Agregar Dispositivo';
+            this.deviceIdInput.value = '';
+        }
+        // Actualiza los labels y selects de Materialize
+        M.updateTextFields();
+        M.FormSelect.init(this.form.querySelectorAll('select'));
+        this.modalInstance.open();
+    }
+
+    public closeModal(): void {
+        this.modalInstance.close();
+    }
+}
+
+/**
+ * Clase principal que orquesta la aplicación.
+ */
+class Main {
+    private api: DeviceAPI = new DeviceAPI();
+    private ui: UIManager = new UIManager();
+    private devices: Device[] = [];
+
+    public init(): void {
+        document.addEventListener('DOMContentLoaded', () => {
+            this.initializeMaterializeComponents();
+            this.loadAndRender();
+            this.addEventListeners();
+        });
+    }
+
+    private initializeMaterializeComponents(): void {
+        M.Modal.init(document.querySelectorAll('.modal'));
+        M.FormSelect.init(document.querySelectorAll('select'));
+        M.FloatingActionButton.init(document.querySelectorAll('.fixed-action-btn'));
+    }
+
+    private async loadAndRender(): Promise<void> {
         try {
-            const url = `${this.backendApiUrl}/incubators/${this.incubatorId}/history`;
-            const response = await fetch(url);
-            const data = await response.json();
-
-            // Actualización segura de los datos del gráfico
-            this.chart.data.labels = data.map((d: any) => d.timestamp);
-            this.chart.data.datasets[0].data = data.map((d: any) => d.temperature);
-            this.chart.data.datasets[1].data = data.map((d: any) => d.humidity);
-
-            this.chart.update();
-
+            this.devices = await this.api.getDevices();
+            this.ui.render(this.devices);
         } catch (error) {
-            console.error("Error al actualizar el gráfico:", error);
+            console.error("No se pudieron cargar los dispositivos.", error);
+        }
+    }
+
+    private addEventListeners(): void {
+        // --- Event Listeners para CRUD ---
+        document.getElementById('add-device-btn')!.addEventListener('click', () => this.ui.openModal());
+        
+        this.ui.devicesList.addEventListener('click', (e) => {
+            const target = e.target as HTMLElement;
+            const editBtn = target.closest('.edit-btn');
+            if (editBtn) {
+                const id = parseInt(editBtn.getAttribute('data-id')!);
+                const deviceToEdit = this.devices.find(d => d.id === id);
+                this.ui.openModal(deviceToEdit || null);
+            }
+            const deleteBtn = target.closest('.delete-btn');
+            if (deleteBtn) {
+                const id = parseInt(deleteBtn.getAttribute('data-id')!);
+                if (confirm('¿Estás seguro de que quieres eliminar este dispositivo?')) {
+                    this.handleDelete(id);
+                }
+            }
+        });
+
+        this.ui.form.addEventListener('submit', (e) => this.handleFormSubmit(e));
+        
+        // --- Event Listeners para Controles de Actuadores (Delegados) ---
+        const controlsContainer = this.ui.controlsContainer;
+        
+        controlsContainer.addEventListener('change', (e) => {
+            const target = e.target as HTMLInputElement;
+            if (target.classList.contains('actuator-switch')) {
+                const id = parseInt(target.dataset.id!);
+                this.api.updateDeviceState(id, target.checked ? 1 : 0);
+            }
+        });
+
+        controlsContainer.addEventListener('input', (e) => {
+            const target = e.target as HTMLInputElement;
+            if (target.classList.contains('actuator-slider')) {
+                const id = parseInt(target.dataset.id!);
+                this.api.updateDeviceState(id, parseInt(target.value));
+            }
+        });
+    }
+
+    private async handleFormSubmit(event: Event): Promise<void> {
+        event.preventDefault();
+        const form = event.target as HTMLFormElement;
+        const formData = new FormData(form);
+        const data = Object.fromEntries(formData.entries()); // Esta línea ahora compilará correctamente
+        const deviceData = {
+            name: data.name as string,
+            description: data.description as string,
+            room: data.room as string,
+            type: data.type as Device['type'],
+            icon: (data.type as string).includes('light') ? 'lightbulb' : (data.type as string),
+        };
+        const id = (form.elements.namedItem('id') as HTMLInputElement).value;
+
+        try {
+            if (id) {
+                await this.api.updateDevice(parseInt(id), deviceData);
+                M.toast({ html: 'Dispositivo actualizado con éxito' });
+            } else {
+                await this.api.createDevice(deviceData);
+                M.toast({ html: 'Dispositivo creado con éxito' });
+            }
+            this.ui.closeModal();
+            this.loadAndRender();
+        } catch (error) {
+            // El error ya se notifica en la clase API.
+        }
+    }
+
+    private async handleDelete(id: number): Promise<void> {
+        try {
+            await this.api.deleteDevice(id);
+            M.toast({ html: 'Dispositivo eliminado' });
+            this.loadAndRender();
+        } catch (error) {
+            // El error ya se notifica en la clase API.
         }
     }
 }
 
-// Iniciar la aplicación
-const main = new Main();
+// Inicializar la aplicación
+const app = new Main();
+app.init();

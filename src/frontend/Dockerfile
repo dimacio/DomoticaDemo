@@ -1,33 +1,39 @@
-# STAGE 1: Build - Compilar el TypeScript a JavaScript
+# =================================================================
+# Dockerfile para el Frontend con Materialize y TypeScript (Multi-etapa)
+# =================================================================
+
+# --- ETAPA 1: Construcción (Compilar TypeScript a JavaScript) ---
 FROM node:18-alpine AS builder
 
-# Establecer el directorio de trabajo
-WORKDIR /app
+WORKDIR /usr/src/app
 
-# Copiar los archivos de configuración de dependencias y de typescript
+# Copia los archivos de configuración y dependencias.
 COPY package*.json ./
-COPY ts/tsconfig.json ./ts/
+COPY tsconfig.json ./
 
-# Instalar dependencias (typescript)
+# Instala las dependencias de desarrollo (typescript).
 RUN npm install
 
-# Copiar el código fuente de TypeScript
-COPY ts ./ts
+# Copia el código fuente de TypeScript.
+COPY ./ts ./ts
 
-# Compilar el proyecto. Esto leerá tsconfig.json y generará los .js en /app/static/js
+# Ejecuta el script de 'build' (tsc) para compilar TS a JS.
+# El resultado se guardará en /static/js/main.js según tsconfig.json
 RUN npm run build
 
 
-# STAGE 2: Production - Servir los archivos estáticos con Nginx
-FROM nginx:stable-alpine
+# --- ETAPA 2: Producción (Servir los archivos estáticos con Nginx) ---
+FROM nginx:1.21.6-alpine
 
-# Copiar los archivos estáticos (CSS, JS compilado desde el 'builder', etc.)
-COPY --from=builder /app/static /usr/share/nginx/html/static
-COPY ./index.html /usr/share/nginx/html/
-COPY ./nginx.conf /etc/nginx/conf.d/default.conf
+# Copia la configuración personalizada de Nginx.
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-# Exponer el puerto 80
+# Copia el HTML principal y los assets estáticos (CSS, JS de Materialize).
+COPY index.html /usr/share/nginx/html/
+COPY ./static /usr/share/nginx/html/static
+
+# Copia el JavaScript de nuestra aplicación compilado desde la etapa 'builder'.
+COPY --from=builder /usr/src/app/static/js/main.js /usr/share/nginx/html/static/js/main.js
+
 EXPOSE 80
-
-# Comando para iniciar Nginx
 CMD ["nginx", "-g", "daemon off;"]
