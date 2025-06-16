@@ -1,0 +1,41 @@
+/* Estilos personalizados para la aplicación de la incubadora */
+
+body {
+    display: flex;
+    min-height: 100vh;
+    flex-direction: column;
+    background-color: #f4f4f4;
+}
+
+main {
+    flex: 1 0 auto;
+    padding-bottom: 20px;
+}
+
+.nav-wrapper .brand-logo {
+    display: flex;
+    align-items: center;
+}
+
+.medium-icon {
+    font-size: 4rem;
+    color: #4db6ac; /* Un color teal más claro */
+}
+
+.card-panel {
+    border-radius: 8px;
+}
+
+.card {
+    border-radius: 8px;
+}
+
+.switch label {
+    font-size: 1.1rem;
+}
+
+/* Ajuste para que los switches se vean mejor en las tarjetas */
+.card .card-content .switch {
+    margin-top: 20px;
+    margin-bottom: 10px;
+}

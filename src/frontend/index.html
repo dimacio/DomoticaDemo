@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Control de Incubadora</title>
+    <!-- Materialize CSS -->
+    <link rel="stylesheet" href="static/css/materialize.min.css">
+    <!-- Google Icons -->
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <!-- Estilos personalizados -->
+    <link rel="stylesheet" href="static/css/styles.css">
+    <!-- Chart.js para gráficos -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/moment@2.29.1/moment.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-moment@1.0.0/dist/chartjs-adapter-moment.min.js"></script>
+</head>
+<body>
+
+    <header>
+        <nav>
+            <div class="nav-wrapper teal darken-2">
+                <a href="#" class="brand-logo center">
+                    <i class="material-icons left" style="font-size: 2rem; margin-right: 8px;">ac_unit</i>
+                    Sistema de Control de Incubadora
+                </a>
+            </div>
+        </nav>
+    </header>
+
+    <main class="container">
+        <!-- Sección de Estado Actual -->
+        <div class="section" id="current-status">
+            <h4>Estado Actual</h4>
+            <div class="row">
+                <div class="col s12 m6">
+                    <div class="card-panel grey lighten-4 z-depth-1">
+                        <div class="row valign-wrapper">
+                            <div class="col s3">
+                                <i class="material-icons medium-icon">thermostat</i>
+                            </div>
+                            <div class="col s9">
+                                <span class="black-text">
+                                    <h5>Temperatura</h5>
+                                    <h4 id="temp-display">--.- °C</h4>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col s12 m6">
+                    <div class="card-panel grey lighten-4 z-depth-1">
+                        <div class="row valign-wrapper">
+                            <div class="col s3">
+                                <i class="material-icons medium-icon">opacity</i>
+                            </div>
+                            <div class="col s9">
+                                <span class="black-text">
+                                    <h5>Humedad</h5>
+                                    <h4 id="hum-display">--.- %</h4>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sección de Controles -->
+        <div class="section" id="controls">
+            <h4>Panel de Control</h4>
+            <div class="row">
+                <!-- Los data-device-id se corresponden con los IDs en la DB -->
+                <!-- Control Lámpara (Dimmer) -->
+                <div class="col s12 m6 l4">
+                    <div class="card">
+                        <div class="card-content">
+                            <span class="card-title">Lámpara Infrarroja</span>
+                            <p id="dimmer-label">Intensidad: 0%</p>
+                            <p class="range-field">
+                                <input type="range" id="dimmer-slider" data-device-id="1" min="0" max="100" value="0" />
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                <!-- Control Placa Calefactora -->
+                <div class="col s12 m6 l4">
+                    <div class="card">
+                        <div class="card-content">
+                            <span class="card-title">Placa Calefactora</span>
+                            <div class="switch">
+                                <label>
+                                    Off
+                                    <input type="checkbox" id="heater-switch" data-device-id="2">
+                                    <span class="lever"></span>
+                                    On
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- Control Vaporizador -->
+                <div class="col s12 m6 l4">
+                     <div class="card">
+                        <div class="card-content">
+                            <span class="card-title">Vaporizador</span>
+                             <div class="switch">
+                                <label>
+                                    Off
+                                    <input type="checkbox" id="vaporizer-switch" data-device-id="3">
+                                    <span class="lever"></span>
+                                    On
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sección de Gráfico Histórico -->
+        <div class="section" id="history-chart">
+             <h4>Historial de Sensores</h4>
+             <div class="card-panel">
+                 <canvas id="sensorChart"></canvas>
+             </div>
+        </div>
+    </main>
+
+    <!-- Scripts JS -->
+    <script src="static/js/materialize.min.js"></script>
+    <script src="static/js/main.js"></script>
+</body>
+</html>

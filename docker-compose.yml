@@ -1,0 +1,65 @@
+version: '3.8'
+
+services:
+  # Servicio del Backend (API Principal)
+  backend:
+    build: ./src/backend
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./src/backend:/usr/src/app
+    depends_on:
+      - db
+      - esp32-emulator # El backend depende de la DB y del emulador
+    networks:
+      - app-network
+    environment:
+      - MYSQL_HOST=db
+      - MYSQL_USER=user
+      - MYSQL_PASSWORD=password
+      - MYSQL_DB=smart_garden
+      - ESP32_EMULATOR_URL=http://esp32-emulator:3001 # URL para comunicarse con el emulador
+
+  # Servicio del Frontend
+  frontend:
+    build:
+      context: ./src/frontend
+      dockerfile: Dockerfile
+    volumes:
+      - ./src/frontend:/usr/share/nginx/html
+      - ./src/frontend/nginx.conf:/etc/nginx/conf.d/default.conf
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend
+    networks:
+      - app-network
+
+  # Servicio de Base de Datos
+  db:
+    image: mysql:8.0
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: root_password
+      MYSQL_DATABASE: smart_garden
+      MYSQL_USER: user
+      MYSQL_PASSWORD: password
+    volumes:
+      - ./db/dumps:/docker-entrypoint-initdb.d
+    networks:
+      - app-network
+
+  # Emulador del dispositivo ESP32
+  esp32-emulator:
+    build: ./src/esp32-emulator # Ruta al Dockerfile del emulador
+    ports:
+      - "3001:3001" # Puerto para comunicación interna
+    volumes:
+      - ./src/esp32-emulator:/usr/src/app
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
